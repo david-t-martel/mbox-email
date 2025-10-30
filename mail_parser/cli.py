@@ -305,7 +305,7 @@ def cli():
 @click.option('--output', '-o', default='./output', help='Output directory')
 @click.option('--config', '-c', help='Configuration file path')
 @click.option('--limit', '-l', type=int, help='Limit number of emails (for testing)')
-@click.option('--workers', '-w', type=int, default=8, help='Number of worker processes')
+@click.option('--workers', '-w', type=int, default=None, help='Number of worker processes (default: auto-detect)')
 @click.option('--enable-gmail-api', is_flag=True, help='Enable Gmail API integration')
 def parse(mbox, output, config, limit, workers, enable_gmail_api):
     """Parse mbox file and generate HTML emails."""
@@ -313,6 +313,10 @@ def parse(mbox, output, config, limit, workers, enable_gmail_api):
 
     # Override config with CLI args
     app.config['output']['base_dir'] = output
+    # Auto-detect optimal worker count if not specified
+    if workers is None:
+        workers = min(cpu_count(), 8)
+        logger.info(f"Auto-detected {workers} worker processes")
     app.config['performance']['workers'] = workers
     if enable_gmail_api:
         app.config['gmail_api']['enabled'] = True
