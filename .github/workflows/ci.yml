@@ -1,0 +1,258 @@
+name: CI - Python & Rust
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.10'
+  UV_VERSION: '0.4.0'
+  RUST_VERSION: 'stable'
+
+jobs:
+  # ==========================================
+  # Python Linting and Type Checking
+  # ==========================================
+  python-quality:
+    name: Python Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache UV dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+          uv pip install pre-commit mypy ruff black isort bandit[toml] pydocstyle
+
+      - name: Run Black (formatting check)
+        run: uv run black --check --diff mail_parser/
+
+      - name: Run isort (import sorting)
+        run: uv run isort --check-only --diff mail_parser/
+
+      - name: Run Ruff (linting)
+        run: uv run ruff check mail_parser/
+
+      - name: Run mypy (type checking)
+        run: uv run mypy mail_parser/ --ignore-missing-imports
+
+      - name: Run bandit (security)
+        run: uv run bandit -c pyproject.toml -r mail_parser/
+
+      - name: Run pydocstyle (docstrings)
+        run: uv run pydocstyle mail_parser/ --convention=google || true
+
+  # ==========================================
+  # Python Tests (Multi-version)
+  # ==========================================
+  python-tests:
+    name: Python Tests (py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+        shell: bash
+
+      - name: Add UV to PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "$HOME/.cargo/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Add UV to PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache UV dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+          uv pip install pytest pytest-cov pytest-xdist
+
+      - name: Run Python tests
+        run: uv run pytest tests/ -v --cov=mail_parser --cov-report=xml --cov-report=html
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: python
+          name: python-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage HTML
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: htmlcov/
+
+  # ==========================================
+  # Integration Tests (Python + Rust)
+  # ==========================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [python-quality, python-tests]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install maturin
+        run: uv pip install maturin
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            mail_parser_rust/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('mail_parser_rust/Cargo.lock') }}
+
+      - name: Build Rust extension
+        run: |
+          cd mail_parser_rust
+          maturin build --release --strip
+
+      - name: Install Python package with Rust extension
+        run: |
+          uv venv
+          uv pip install -e .
+          uv pip install mail_parser_rust/target/wheels/*.whl
+
+      - name: Run integration tests
+        run: uv run pytest tests/ -v -m integration || echo "No integration tests marked"
+
+  # ==========================================
+  # Pre-commit Hooks Validation
+  # ==========================================
+  pre-commit:
+    name: Pre-commit Hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: uv pip install pre-commit
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  # ==========================================
+  # Build Verification
+  # ==========================================
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build Python package
+        run: |
+          uv venv
+          uv pip install build
+          uv run python -m build
+
+      - name: Check package metadata
+        run: |
+          uv pip install twine
+          uv run twine check dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/

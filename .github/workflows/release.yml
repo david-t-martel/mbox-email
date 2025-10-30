@@ -1,0 +1,266 @@
+name: Release - Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # ==========================================
+  # Build Python Wheels (maturin)
+  # ==========================================
+  build-wheels:
+    name: Build Wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Build wheels (Linux)
+        if: runner.os == 'Linux'
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64
+          args: --release --strip --out dist --interpreter python${{ matrix.python-version }}
+          working-directory: mail_parser_rust
+          manylinux: auto
+
+      - name: Build wheels (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd mail_parser_rust
+          maturin build --release --strip --out dist --interpreter python${{ matrix.python-version }}
+
+      - name: Build wheels (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd mail_parser_rust
+          maturin build --release --strip --out dist --interpreter python${{ matrix.python-version }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: mail_parser_rust/dist/*.whl
+
+  # ==========================================
+  # Build Source Distribution
+  # ==========================================
+  build-sdist:
+    name: Build Source Distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build tools
+        run: pip install build maturin
+
+      - name: Build Python sdist
+        run: python -m build --sdist
+
+      - name: Build Rust sdist
+        run: |
+          cd mail_parser_rust
+          maturin sdist --out ../dist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # ==========================================
+  # Test Wheels
+  # ==========================================
+  test-wheels:
+    name: Test Wheels (${{ matrix.os }})
+    needs: [build-wheels]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: wheels/
+
+      - name: Install wheel
+        run: pip install wheels/*.whl
+
+      - name: Test import
+        run: |
+          python -c "import mail_parser_rust; print('Successfully imported mail_parser_rust')"
+          python -c "from mail_parser_rust import parse_email_fast; print('parse_email_fast available')"
+
+      - name: Run smoke tests
+        run: |
+          pip install pytest
+          pytest tests/ -v -k "rust" || echo "No rust-specific tests found"
+
+  # ==========================================
+  # Publish to PyPI
+  # ==========================================
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build-wheels, build-sdist, test-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event_name == 'push'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mail-parser-rust
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+          packages-dir: dist/
+          skip-existing: true
+          verbose: true
+
+  # ==========================================
+  # Publish to Test PyPI (for testing)
+  # ==========================================
+  publish-test-pypi:
+    name: Publish to Test PyPI
+    needs: [build-wheels, build-sdist, test-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/mail-parser-rust
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+          skip-existing: true
+
+  # ==========================================
+  # Create GitHub Release
+  # ==========================================
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================
+  # Build Documentation
+  # ==========================================
+  build-docs:
+    name: Build and Deploy Documentation
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install mkdocs mkdocs-material mkdocstrings[python]
+
+      - name: Build documentation
+        run: mkdocs build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site

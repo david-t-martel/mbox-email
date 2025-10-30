@@ -1,0 +1,89 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Linting
+.mypy_cache/
+.ruff_cache/
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Output and data
+output/
+mail_data/
+*.mbox
+*.db
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+
+# Credentials (NEVER include in image)
+credentials/
+*.json
+!pyproject.toml
+token.json
+
+# Config (will be mounted)
+config/*.yml
+config/*.yaml
+!config/example.yaml
+
+# Development
+.pre-commit-config.yaml
+.secrets.baseline
+.codecov.yml
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+
+# Rust build artifacts
+mail_parser_rust/
+target/
+Cargo.lock

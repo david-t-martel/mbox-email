@@ -4,35 +4,331 @@ version = "1.0.0"
 description = "High-performance Gmail mbox parser with multi-dimensional organization and analytics"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "google-api-python-client>=2.150.0",
-    "google-auth-oauthlib>=1.2.0",
-    "google-auth-httplib2>=0.2.0",
-    "beautifulsoup4>=4.12.0",
-    "lxml>=5.3.0",
-    "jinja2>=3.1.4",
-    "pyyaml>=6.0.2",
-    "tqdm>=4.66.0",
-    "chardet>=5.2.0",
-    "sqlalchemy>=2.0.0",
-    "pandas>=2.2.0",
-    "plotly>=5.24.0",
-    "click>=8.1.0",
+license = {file = "LICENSE"}
+authors = [
+    {name = "David T. Martel", email = "david.martel@auricleinc.com"}
+]
+keywords = [
+    "email",
+    "mbox",
+    "gmail",
+    "parser",
+    "analytics",
+    "html-renderer",
+    "email-analysis"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Communications :: Email",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 
+# Core dependencies - production requirements
+dependencies = [
+    # Gmail API integration
+    "google-api-python-client>=2.150.0,<3.0.0",
+    "google-auth-oauthlib>=1.2.0,<2.0.0",
+    "google-auth-httplib2>=0.2.0,<1.0.0",
+
+    # HTML/XML parsing and rendering
+    "beautifulsoup4>=4.12.0,<5.0.0",
+    "lxml>=5.3.0,<6.0.0",
+    "jinja2>=3.1.4,<4.0.0",
+
+    # Data formats and configuration
+    "pyyaml>=6.0.2,<7.0.0",
+
+    # Progress tracking and CLI
+    "tqdm>=4.66.0,<5.0.0",
+    "click>=8.1.0,<9.0.0",
+
+    # Character encoding detection
+    "chardet>=5.2.0,<6.0.0",
+
+    # Database and analytics
+    "sqlalchemy>=2.0.0,<3.0.0",
+    "pandas>=2.2.0,<3.0.0",
+    "plotly>=5.24.0,<6.0.0",
+]
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "black>=25.0.0,<26.0.0",
+    "ruff>=0.14.0,<1.0.0",
+    "mypy>=1.14.0,<2.0.0",
+    "ipython>=8.30.0,<9.0.0",
+    "ipdb>=0.13.0,<1.0.0",
+]
+
+# Testing dependencies
+test = [
+    "pytest>=8.4.0,<9.0.0",
+    "pytest-cov>=6.0.0,<7.0.0",
+    "pytest-xdist>=3.6.0,<4.0.0",
+    "pytest-timeout>=2.3.0,<3.0.0",
+    "pytest-mock>=3.15.0,<4.0.0",
+    "coverage[toml]>=7.6.0,<8.0.0",
+    "hypothesis>=6.124.0,<7.0.0",
+]
+
+# Documentation dependencies
+docs = [
+    "sphinx>=8.1.0,<9.0.0",
+    "sphinx-rtd-theme>=3.0.0,<4.0.0",
+    "sphinx-autodoc-typehints>=2.5.0,<3.0.0",
+    "myst-parser>=4.0.0,<5.0.0",
+]
+
+# Rust extension building
+build = [
+    "maturin>=1.9.6,<2.0.0",
+]
+
+# Performance profiling
+profile = [
+    "py-spy>=0.4.0,<1.0.0",
+    "memory-profiler>=0.61.0,<1.0.0",
+    "line-profiler>=4.2.0,<5.0.0",
+]
+
+# All optional dependencies combined
+all = [
+    "mail_parser[dev,test,docs,build,profile]",
+]
+
+[project.urls]
+Homepage = "https://github.com/auricleinc/mail_parser"
+Documentation = "https://github.com/auricleinc/mail_parser#readme"
+Repository = "https://github.com/auricleinc/mail_parser"
+Issues = "https://github.com/auricleinc/mail_parser/issues"
+
+[project.scripts]
+mail-parser = "mail_parser.cli:cli"
+mbox-parse = "mail_parser.cli:cli"
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["mail_parser"]
 
 [tool.hatch.build]
-include = ["mail_parser/**/*.py", "mail_parser/**/*.html"]
+include = [
+    "mail_parser/**/*.py",
+    "mail_parser/**/*.html",
+    "mail_parser/**/*.jinja2",
+    "mail_parser/**/*.css",
+    "mail_parser/**/*.js",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/.pytest_cache",
+    "**/.mypy_cache",
+    "**/.ruff_cache",
+]
 
+# UV-specific configuration
 [tool.uv]
 dev-dependencies = [
-    "pytest>=8.0.0",
-    "black>=24.0.0",
-    "ruff>=0.6.0",
+    "pytest>=8.4.0",
+    "black>=25.0.0",
+    "ruff>=0.14.0",
+    "mypy>=1.14.0",
 ]
+
+# Black configuration - Python code formatter
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | \.venv
+  | _build
+  | build
+  | dist
+  | mail_parser_rust
+)/
+'''
+
+# Ruff configuration - Fast Python linter
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+    "mail_parser_rust",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # Ruff-specific rules
+]
+ignore = [
+    "E501",   # Line too long (handled by black)
+    "B008",   # Do not perform function calls in argument defaults
+    "B905",   # zip() without an explicit strict= parameter
+    "UP007",  # Use X | Y for type annotations (keep Optional for clarity)
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"tests/**/*.py" = ["ARG", "SIM"]  # Relax some rules in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["mail_parser"]
+force-single-line = false
+lines-after-imports = 2
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=mail_parser",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "gmail_api: marks tests that require Gmail API access",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+# MyPy configuration - Static type checking
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_generics = false
+disallow_subclassing_any = true
+disallow_untyped_calls = false
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = [
+    "google.*",
+    "googleapiclient.*",
+    "bs4.*",
+    "lxml.*",
+    "plotly.*",
+    "tqdm.*",
+]
+ignore_missing_imports = true
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["mail_parser"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/mail_parser_rust/*",
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "@typing.overload",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+# Bandit configuration - Security linter
+[tool.bandit]
+exclude_dirs = [
+    ".venv",
+    "tests",
+    "mail_parser_rust",
+    "build",
+    "dist",
+]
+skips = [
+    "B101",  # assert_used (allowed in tests)
+    "B601",  # paramiko_calls (we don't use paramiko)
+]
+
+# pydocstyle configuration - Docstring linter
+[tool.pydocstyle]
+convention = "google"
+add_ignore = [
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D107",  # Missing docstring in __init__
+]
+match = "(?!test_).*\\.py"
+match_dir = "^(?!(\\.venv|build|dist|mail_parser_rust)).*"

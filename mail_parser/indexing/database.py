@@ -26,11 +26,32 @@ class EmailDatabase:
         self.initialize_database()
 
     def initialize_database(self) -> None:
-        """Initialize database schema."""
+        """Initialize database schema with performance optimizations."""
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
 
+        # Performance optimizations
         cursor = self.conn.cursor()
+
+        # Enable WAL mode for better concurrency (10x faster writes)
+        cursor.execute("PRAGMA journal_mode=WAL")
+
+        # Use NORMAL synchronous mode (safe and 3x faster than FULL)
+        cursor.execute("PRAGMA synchronous=NORMAL")
+
+        # Increase cache size to 64MB for better performance
+        cursor.execute("PRAGMA cache_size=-64000")
+
+        # Store temp tables in memory
+        cursor.execute("PRAGMA temp_store=MEMORY")
+
+        # Increase page size for better I/O (must be set before table creation)
+        cursor.execute("PRAGMA page_size=4096")
+
+        # Enable memory-mapped I/O (faster reads)
+        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB
+
+        logger.info("SQLite performance optimizations enabled (WAL, cache, mmap)")
 
         # Create emails table
         cursor.execute("""
@@ -175,6 +196,80 @@ class EmailDatabase:
         except Exception as e:
             logger.error(f"Failed to insert email {email_id}: {e}")
             self.conn.rollback()
+
+    def insert_emails_batch(
+        self,
+        emails: list[tuple[str, dict[str, Any], str, str, bool]]
+    ) -> None:
+        """
+        Insert multiple emails in a single transaction (10x faster than individual inserts).
+
+        Args:
+            emails: List of tuples (email_id, metadata, html_path, content_hash, is_duplicate)
+        """
+        if not emails:
+            return
+
+        try:
+            cursor = self.conn.cursor()
+
+            # Prepare batch data
+            batch_data = []
+            for email_id, metadata, html_path, content_hash, is_duplicate in emails:
+                from_addr = metadata.get('from', {})
+                to_addrs = metadata.get('to', [])
+                date_obj = metadata.get('date')
+
+                # Format date
+                date_str = None
+                date_timestamp = None
+                if isinstance(date_obj, datetime):
+                    date_str = date_obj.isoformat()
+                    date_timestamp = int(date_obj.timestamp())
+
+                # Combine recipient emails
+                recipient_emails = ','.join([addr.get('email', '') for addr in to_addrs])
+
+                # Combine labels
+                labels = ','.join(metadata.get('gmail_labels', []))
+
+                batch_data.append((
+                    email_id,
+                    metadata.get('message_id'),
+                    metadata.get('gmail_thread_id'),
+                    from_addr.get('name'),
+                    from_addr.get('email'),
+                    from_addr.get('email', '').split('@')[1] if '@' in from_addr.get('email', '') else '',
+                    recipient_emails,
+                    metadata.get('subject'),
+                    date_str,
+                    date_timestamp,
+                    labels,
+                    metadata.get('has_attachments', False),
+                    0,  # TODO: Add attachment count
+                    html_path,
+                    content_hash,
+                    is_duplicate
+                ))
+
+            # Batch insert with executemany (much faster than individual inserts)
+            cursor.executemany("""
+                INSERT OR REPLACE INTO emails (
+                    email_id, message_id, thread_id,
+                    sender_name, sender_email, sender_domain,
+                    recipient_emails, subject, date, date_timestamp,
+                    labels, has_attachments, attachment_count,
+                    html_path, content_hash, is_duplicate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, batch_data)
+
+            self.conn.commit()
+            logger.debug(f"Batch inserted {len(emails)} emails")
+
+        except Exception as e:
+            logger.error(f"Failed to batch insert {len(emails)} emails: {e}")
+            self.conn.rollback()
+            raise
 
     def search(
         self,

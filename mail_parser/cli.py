@@ -186,7 +186,7 @@ class MailParserCLI:
         limit: Optional[int] = None,
     ) -> None:
         """
-        Parse mbox file and generate HTML emails.
+        Parse mbox file and generate HTML emails with intelligent resume capability.
 
         Args:
             mbox_path: Path to mbox file
@@ -199,6 +199,20 @@ class MailParserCLI:
             mbox_path,
             chunk_size=self.config['performance']['chunk_size']
         )
+
+        # Get set of already-processed email IDs for intelligent resume
+        processed_ids = set()
+        if self.database:
+            try:
+                cursor = self.database.conn.cursor()
+                cursor.execute("SELECT email_id FROM emails")
+                processed_ids = {row[0] for row in cursor.fetchall()}
+                if processed_ids:
+                    logger.info(f"🔄 RESUME MODE: Found {len(processed_ids):,} already-processed emails, will skip them")
+                else:
+                    logger.info("🆕 FRESH START: No existing emails found, processing all messages")
+            except Exception as e:
+                logger.warning(f"Could not load processed IDs (starting fresh): {e}")
 
         # Initialize organizers
         base_dir = Path(self.config['output']['base_dir'])
@@ -216,9 +230,18 @@ class MailParserCLI:
 
         # Process emails
         processed = 0
+        skipped = 0
         errors = 0
 
         for idx, message in parser.parse_stream():
+            # Check if email was already processed (intelligent resume)
+            email_id = f"email_{idx:06d}"
+            if email_id in processed_ids:
+                skipped += 1
+                if skipped % 1000 == 0:
+                    logger.info(f"Skipped {skipped:,} already-processed emails...")
+                continue
+
             # Check limit
             if limit and processed >= limit:
                 logger.info(f"Reached limit of {limit} emails")
@@ -233,9 +256,13 @@ class MailParserCLI:
 
             # Progress update
             if processed % 100 == 0:
-                logger.info(f"Processed {processed} emails...")
+                logger.info(f"Processed {processed} new emails (skipped {skipped:,} existing)...")
 
-        logger.info(f"Processing complete: {processed} emails processed, {errors} errors")
+        # Final summary with resume information
+        if skipped > 0:
+            logger.info(f"✅ Processing complete: {processed} new emails processed, {skipped:,} existing emails skipped, {errors} errors")
+        else:
+            logger.info(f"✅ Processing complete: {processed} emails processed, {errors} errors")
 
         # Generate analytics
         if self.config['analysis'].get('enable_statistics'):
@@ -255,7 +282,7 @@ class MailParserCLI:
         # Database statistics
         if self.database:
             db_stats = self.database.get_statistics()
-            logger.info(f"Database stats: {db_stats}")
+            logger.info(f"📊 Database stats: {db_stats}")
 
             # Generate interactive web dashboard
             logger.info("Generating interactive web dashboard...")

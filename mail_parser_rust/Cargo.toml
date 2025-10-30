@@ -1,0 +1,96 @@
+[package]
+name = "mail_parser_rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["David T. Martel <david.martel@auricleinc.com>"]
+description = "High-performance email parsing extension for Python via Rust/PyO3"
+documentation = "https://github.com/auricleinc/mail_analysis"
+repository = "https://github.com/auricleinc/mail_analysis"
+license = "MIT"
+keywords = ["email", "parser", "mbox", "performance", "pyo3"]
+categories = ["email", "parsing", "text-processing"]
+readme = "README.md"
+rust-version = "1.70"
+
+[lib]
+name = "mail_parser_rust"
+crate-type = ["cdylib"]
+bench = false  # Disable default benchmarks (use criterion)
+
+[dependencies]
+# Python bindings - CRITICAL: Keep at 0.25.0
+pyo3 = { version = "=0.25.0", features = ["extension-module", "abi3-py310"] }
+
+# Fast regex engine (10-100x faster than Python re)
+regex = "1.11"              # DFA-based regex with SIMD
+lazy_static = "1.5"         # Compile regex once
+
+# Memory-mapped file I/O (3-5x faster file access)
+memmap2 = "0.9"             # Safe memory-mapped files
+
+# Fast encoding detection (100x faster than chardet)
+chardetng = "0.1"           # Encoding detection optimized for text
+encoding_rs = "0.8"         # Fast encoding conversion
+
+# Parallel processing
+rayon = "1.10"              # Data parallelism
+
+# Serialization for Python integration (used by EmailMetadata)
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Testing utilities
+proptest = "1.5"           # Property-based testing
+quickcheck = "1.0"         # QuickCheck-style testing
+
+[profile.release]
+# Optimize for maximum performance
+opt-level = 3               # Maximum optimization
+lto = "fat"                 # Full LTO for maximum performance
+codegen-units = 1           # Better optimization (slower compile)
+strip = true                # Strip symbols for smaller binary
+panic = "abort"             # Smaller binary, no unwinding
+
+[profile.release.build-override]
+opt-level = 0               # Don't optimize build scripts
+
+[profile.dev]
+opt-level = 0               # Fast compilation during development
+debug = true                # Full debug info
+
+[profile.bench]
+inherits = "release"        # Use release optimizations for benchmarks
+
+# Strict linting configuration
+[lints.rust]
+unsafe_code = "warn"        # Warn on unsafe code (allowed for mmap and PyO3)
+missing_docs = "allow"      # Allow missing docs for now (TODO: add comprehensive docs)
+unused_imports = "warn"     # Warn on unused imports
+unused_variables = "warn"   # Warn on unused variables
+dead_code = "allow"         # Allow dead code (parse_headers_fast, process_metadata_batch commented out)
+
+[lints.clippy]
+# Pedantic lints
+pedantic = "warn"
+# Specific lints
+all = "warn"
+nursery = "warn"
+cargo = "warn"
+# Performance lints
+perf = "warn"
+# Correctness lints (deny)
+correctness = "deny"
+
+# Allow some pedantic lints that conflict with PyO3 patterns
+[lints.clippy.must_use_candidate]
+level = "allow"
+
+[lints.clippy.module_name_repetitions]
+level = "allow"
+
+[[bench]]
+name = "email_parsing"
+harness = false  # Use criterion instead of default harness

@@ -186,6 +186,56 @@ config.local.yaml
 # Analytics reports (generated files)
 analytics_report.html
 
+# ========================================
+# Rust
+# ========================================
+
+# Rust build artifacts
+mail_parser_rust/target/
+**/target/
+
+# Cargo lock file (library crate)
+# Commented out if this is a binary crate
+# Cargo.lock
+
+# Rust incremental compilation
+**/*.rs.bk
+**/*.pdb
+
+# Rust profiling and benchmarking
+flamegraph.svg
+perf.data
+perf.data.old
+**/*.profdata
+
+# Maturin build artifacts
+*.whl
+mail_parser_rust/dist/
+mail_parser_rust/target/wheels/
+
+# ========================================
+# Coverage Reports
+# ========================================
+
+# Python coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Rust coverage
+lcov.info
+mail_parser_rust/lcov.info
+mail_parser_rust/target/llvm-cov/
+
+# ========================================
+# Pre-commit
+# ========================================
+
+.secrets.baseline
+
 # Keep example files
 !example_config.yaml
 !.gitkeep

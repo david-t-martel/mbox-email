@@ -1,0 +1,49 @@
+# Codecov configuration for Mail Parser
+# https://docs.codecov.io/docs/codecov-yaml
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+
+    patch:
+      default:
+        target: 75%
+        threshold: 5%
+
+  flags:
+    python:
+      paths:
+        - mail_parser/
+      target: 80%
+
+    rust:
+      paths:
+        - mail_parser_rust/src/
+      target: 70%
+
+comment:
+  layout: "header, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes
+
+ignore:
+  - "tests/"
+  - "**/__pycache__"
+  - "**/test_*.py"
+  - "mail_parser_rust/benches/"
+  - "mail_parser_rust/examples/"
+
+github_checks:
+  annotations: true

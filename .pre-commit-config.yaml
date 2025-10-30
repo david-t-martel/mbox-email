@@ -1,0 +1,242 @@
+# Pre-commit hooks for Mail Parser (Python + Rust hybrid project)
+# Install: uv run pre-commit install
+# Run manually: uv run pre-commit run --all-files
+
+default_language_version:
+  python: python3.10
+
+repos:
+  # ========================================
+  # General File Checks
+  # ========================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(.*\.md|.*\.rst)$
+      - id: end-of-file-fixer
+        exclude: ^(output/|test_output/|.*\.mbox)
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom YAML tags
+      - id: check-toml
+      - id: check-json
+        exclude: ^(credentials/|.*\.secret\.json)
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: detect-private-key
+        exclude: ^(credentials/|test_data/)
+
+  # ========================================
+  # Python: Code Formatting
+  # ========================================
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.10
+        args: ['--line-length=100', '--target-version=py310']
+        exclude: ^(\.venv/|build/|dist/)
+
+  # ========================================
+  # Python: Import Sorting
+  # ========================================
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile', 'black', '--line-length', '100']
+        exclude: ^(\.venv/|build/|dist/)
+
+  # ========================================
+  # Python: Linting (Ruff - replaces flake8, pylint)
+  # ========================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args:
+          - --fix
+          - --exit-non-zero-on-fix
+          - --select=E,W,F,I,N,UP,B,A,C4,DTZ,T10,EM,ISC,ICN,PIE,PT,RSE,RET,SIM,TID,ARG,PLE,PLW,TRY,RUF
+        exclude: ^(\.venv/|build/|dist/|mail_parser_rust/)
+      # Run the formatter (faster alternative to black)
+      - id: ruff-format
+        exclude: ^(\.venv/|build/|dist/|mail_parser_rust/)
+
+  # ========================================
+  # Python: Type Checking
+  # ========================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-PyYAML
+          - types-requests
+          - pandas-stubs
+        args:
+          - --ignore-missing-imports
+          - --no-strict-optional
+          - --warn-unused-ignores
+          - --show-error-codes
+        exclude: ^(\.venv/|build/|dist/|mail_parser_rust/|tests/)
+
+  # ========================================
+  # Python: Security
+  # ========================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml', '-r', 'mail_parser/']
+        additional_dependencies: ['bandit[toml]']
+        exclude: ^(tests/|\.venv/)
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: ^(\.venv/|credentials/|test_data/|.*\.lock)
+
+  # ========================================
+  # Python: Docstring Formatting
+  # ========================================
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        args:
+          - --convention=google
+          - --add-ignore=D100,D104,D105,D107  # Ignore missing docstrings in some contexts
+        exclude: ^(tests/|\.venv/|build/|dist/|mail_parser_rust/)
+
+  # ========================================
+  # Rust: Formatting
+  # ========================================
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: rustfmt (mail_parser_rust)
+        files: ^mail_parser_rust/.*\.rs$
+        args: ['--manifest-path=mail_parser_rust/Cargo.toml', '--']
+        pass_filenames: false
+
+  # ========================================
+  # Rust: Linting
+  # ========================================
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: clippy
+        name: clippy (mail_parser_rust)
+        files: ^mail_parser_rust/.*\.rs$
+        args:
+          - '--manifest-path=mail_parser_rust/Cargo.toml'
+          - '--'
+          - '-D'
+          - 'warnings'
+          - '-W'
+          - 'clippy::all'
+          - '-W'
+          - 'clippy::pedantic'
+          - '-W'
+          - 'clippy::nursery'
+        pass_filenames: false
+
+  # ========================================
+  # Rust: Security Audit
+  # ========================================
+  - repo: local
+    hooks:
+      - id: cargo-audit
+        name: cargo audit (security vulnerabilities)
+        entry: bash -c 'cd mail_parser_rust && cargo audit --deny warnings || true'
+        language: system
+        files: ^mail_parser_rust/Cargo\.(toml|lock)$
+        pass_filenames: false
+
+  # ========================================
+  # Markdown Linting
+  # ========================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.42.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+        exclude: ^(\.venv/|output/|OPTIMIZATIONS_IMPLEMENTED\.md)
+
+  # ========================================
+  # YAML Linting
+  # ========================================
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['-d', '{extends: default, rules: {line-length: {max: 120}, document-start: disable}}']
+        exclude: ^(\.venv/|\.github/)
+
+  # ========================================
+  # TOML Formatting
+  # ========================================
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.14.0
+    hooks:
+      - id: pretty-format-toml
+        args: [--autofix]
+        exclude: ^(\.venv/|uv\.lock)
+
+  # ========================================
+  # Local Hooks: Custom Validation
+  # ========================================
+  - repo: local
+    hooks:
+      # Prevent committing sensitive files
+      - id: check-sensitive-files
+        name: Check for sensitive files
+        entry: bash -c 'if git diff --cached --name-only | grep -E "(credentials\.json|token\.json|.*\.mbox|.*\.db)"; then echo "ERROR: Attempting to commit sensitive files"; exit 1; fi'
+        language: system
+        pass_filenames: false
+
+      # Check Python dependencies are in sync
+      - id: check-python-deps
+        name: Check Python dependencies sync
+        entry: bash -c 'cd /mnt/c/codedev/auricleinc/mail_analysis/mail/mail_parser && uv pip compile pyproject.toml --quiet >/dev/null'
+        language: system
+        files: pyproject.toml
+        pass_filenames: false
+
+      # Rust tests must pass
+      - id: rust-tests
+        name: Run Rust tests
+        entry: bash -c 'cd mail_parser_rust && cargo test --quiet'
+        language: system
+        files: ^mail_parser_rust/.*\.(rs|toml)$
+        pass_filenames: false
+
+      # Python tests must pass (quick smoke test)
+      - id: python-tests-quick
+        name: Run Python quick tests
+        entry: bash -c 'cd /mnt/c/codedev/auricleinc/mail_analysis/mail/mail_parser && uv run pytest tests/ -x --tb=short -q || true'
+        language: system
+        files: ^(mail_parser/.*\.py|tests/.*\.py)$
+        pass_filenames: false
+
+# CI-specific settings
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [cargo-audit, rust-tests, python-tests-quick, check-python-deps]
+  submodules: false

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse and search your email archive with advanced filtering and organization">
+    <title>Email Archive Dashboard</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Welcome Overlay (First Visit Only) -->
+    <div id="welcomeOverlay" class="welcome-overlay" role="dialog" aria-labelledby="welcome-title" aria-modal="true" style="display: none;">
+        <div class="welcome-content">
+            <h2 id="welcome-title">Welcome to Your Email Archive!</h2>
+            <p>We have found <strong id="welcome-email-count">0</strong> emails ready to explore.</p>
+
+            <div class="welcome-features">
+                <div class="feature-item">
+                    <span class="feature-icon" aria-hidden="true">🔍</span>
+                    <h3>Powerful Search</h3>
+                    <p>Find emails instantly by subject, sender, or content</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon" aria-hidden="true">📅</span>
+                    <h3>Smart Filtering</h3>
+                    <p>Filter by date, sender, labels, or attachments</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon" aria-hidden="true">📊</span>
+                    <h3>Multiple Views</h3>
+                    <p>Organize by date, sender, or conversation threads</p>
+                </div>
+            </div>
+
+            <div class="welcome-actions">
+                <button id="skipTour" class="btn btn-secondary">Skip Tour</button>
+                <button id="startTour" class="btn btn-primary">Take Quick Tour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="main-header" role="banner">
+        <div class="header-content">
+            <h1 class="site-title">
+                <span class="icon" aria-hidden="true">📧</span>
+                Email Archive
+            </h1>
+
+            <nav class="header-nav" role="navigation" aria-label="Main navigation">
+                <button id="helpButton" class="icon-button" aria-label="Help and support" title="Help">
+                    <span aria-hidden="true">?</span>
+                </button>
+                <button id="settingsButton" class="icon-button" aria-label="Settings" title="Settings">
+                    <span aria-hidden="true">⚙️</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-container" role="region" aria-label="Email statistics">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalEmails">0</div>
+                    <div class="stat-label">
+                        Total Emails
+                        <button class="info-icon" aria-label="What are total emails?" title="Total number of emails in your archive">
+                            <span aria-hidden="true">ℹ️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalThreads">0</div>
+                    <div class="stat-label">
+                        Threads
+                        <button class="info-icon" aria-label="What are threads?" title="Email conversations grouped together">
+                            <span aria-hidden="true">ℹ️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalDomains">0</div>
+                    <div class="stat-label">
+                        Domains
+                        <button class="info-icon" aria-label="What are domains?" title="Unique sender domains (e.g., gmail.com)">
+                            <span aria-hidden="true">ℹ️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalAttachments">0</div>
+                    <div class="stat-label">
+                        With Files
+                        <button class="info-icon" aria-label="What are files?" title="Emails with attachments">
+                            <span aria-hidden="true">ℹ️</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="last-updated" aria-live="polite">
+                Last updated: <span id="lastUpdated">Just now</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="container" role="main">
+
+        <!-- Search and Filters -->
+        <section class="search-section" aria-label="Search and filter emails">
+            <div class="controls-card">
+
+                <!-- Search Bar -->
+                <div class="search-container">
+                    <form role="search" class="search-form" aria-label="Email search">
+                        <div class="search-input-wrapper">
+                            <label for="searchInput" class="sr-only">Search emails</label>
+                            <input
+                                type="search"
+                                id="searchInput"
+                                class="search-input"
+                                placeholder="Search emails by subject, sender, or content..."
+                                autocomplete="off"
+                                aria-autocomplete="list"
+                                aria-controls="searchSuggestions"
+                                aria-expanded="false"
+                            >
+                            <button type="button" class="search-clear" aria-label="Clear search" style="display: none;">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                            <span class="search-icon" aria-hidden="true">🔍</span>
+                        </div>
+                        <div id="searchSuggestions" class="search-suggestions" role="listbox" style="display: none;">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </form>
+
+                    <button id="advancedSearchToggle" class="btn btn-outline">
+                        Advanced Search
+                        <span aria-hidden="true">▼</span>
+                    </button>
+                </div>
+
+                <!-- Quick Filters -->
+                <div class="quick-filters">
+                    <h2 class="sr-only">Quick filters</h2>
+                    <button class="filter-preset" data-preset="today">
+                        <span aria-hidden="true">📅</span> Today
+                    </button>
+                    <button class="filter-preset" data-preset="this-week">
+                        <span aria-hidden="true">📅</span> This Week
+                    </button>
+                    <button class="filter-preset" data-preset="starred">
+                        <span aria-hidden="true">⭐</span> Starred
+                    </button>
+                    <button class="filter-preset" data-preset="attachments">
+                        <span aria-hidden="true">📎</span> With Attachments
+                    </button>
+                    <button id="moreFilters" class="btn btn-outline btn-sm">
+                        More Filters...
+                    </button>
+                </div>
+
+                <!-- Active Filter Chips -->
+                <div id="activeFilters" class="filter-chips" role="region" aria-label="Active filters">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <!-- Advanced Search Panel (Hidden by default) -->
+                <div id="advancedSearch" class="advanced-search" style="display: none;" role="region" aria-label="Advanced search options">
+                    <div class="advanced-search-content">
+                        <h3>Advanced Search</h3>
+
+                        <!-- Date Range -->
+                        <div class="form-group">
+                            <label for="datePreset">Date Range</label>
+                            <select id="datePreset" class="form-select">
+                                <option value="">Any time</option>
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this-week">This Week</option>
+                                <option value="last-week">Last Week</option>
+                                <option value="this-month">This Month</option>
+                                <option value="last-month">Last Month</option>
+                                <option value="custom">Custom Range...</option>
+                            </select>
+                        </div>
+
+                        <div id="customDateRange" class="form-group" style="display: none;">
+                            <div class="date-range-inputs">
+                                <div>
+                                    <label for="dateFrom">From</label>
+                                    <input type="date" id="dateFrom" class="form-input">
+                                </div>
+                                <div>
+                                    <label for="dateTo">To</label>
+                                    <input type="date" id="dateTo" class="form-input">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sender Filter -->
+                        <div class="form-group">
+                            <label for="senderFilter">From (Sender)</label>
+                            <input
+                                type="text"
+                                id="senderFilter"
+                                class="form-input"
+                                placeholder="Type to search senders..."
+                                list="senderSuggestions"
+                            >
+                            <datalist id="senderSuggestions">
+                                <!-- Populated by JavaScript -->
+                            </datalist>
+                        </div>
+
+                        <!-- Label Filter -->
+                        <div class="form-group">
+                            <label for="labelFilter">Label</label>
+                            <select id="labelFilter" class="form-select" multiple size="5">
+                                <!-- Populated by JavaScript -->
+                            </select>
+                            <p class="form-help">Hold Ctrl/Cmd to select multiple</p>
+                        </div>
+
+                        <!-- Attachment Filter -->
+                        <div class="form-group">
+                            <label>Attachments</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="attachments" value="" checked>
+                                    All emails
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="attachments" value="yes">
+                                    With attachments only
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="attachments" value="no">
+                                    Without attachments
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="form-actions">
+                            <button type="button" id="clearAdvancedSearch" class="btn btn-secondary">
+                                Clear All
+                            </button>
+                            <button type="button" id="applyAdvancedSearch" class="btn btn-primary">
+                                Apply Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Email List -->
+        <section class="email-section">
+            <div class="email-controls">
+                <div class="view-tabs" role="tablist" aria-label="Email organization views">
+                    <button
+                        role="tab"
+                        class="view-tab active"
+                        data-view="date"
+                        aria-selected="true"
+                        aria-controls="emailList"
+                    >
+                        <span aria-hidden="true">📅</span> By Date
+                    </button>
+                    <button
+                        role="tab"
+                        class="view-tab"
+                        data-view="sender"
+                        aria-selected="false"
+                        aria-controls="emailList"
+                    >
+                        <span aria-hidden="true">👤</span> By Sender
+                    </button>
+                    <button
+                        role="tab"
+                        class="view-tab"
+                        data-view="thread"
+                        aria-selected="false"
+                        aria-controls="emailList"
+                    >
+                        <span aria-hidden="true">💬</span> By Thread
+                    </button>
+                </div>
+
+                <div class="list-controls">
+                    <label for="sortBy" class="sr-only">Sort by</label>
+                    <select id="sortBy" class="form-select form-select-sm">
+                        <option value="date-desc">Most Recent First</option>
+                        <option value="date-asc">Oldest First</option>
+                        <option value="sender-asc">Sender A-Z</option>
+                        <option value="sender-desc">Sender Z-A</option>
+                        <option value="subject-asc">Subject A-Z</option>
+                        <option value="subject-desc">Subject Z-A</option>
+                    </select>
+
+                    <label for="perPage" class="sr-only">Emails per page</label>
+                    <select id="perPage" class="form-select form-select-sm">
+                        <option value="25">25 per page</option>
+                        <option value="50" selected>50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state">
+                <div class="loading-spinner" aria-label="Loading emails"></div>
+                <p>Loading your emails...</p>
+            </div>
+
+            <!-- Email Table -->
+            <div id="emailTableContainer" class="email-table-container" style="display: none;">
+                <table id="emailTable" class="email-table" role="table" aria-label="Email list">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="sortable" data-sort="date">
+                                Date
+                                <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sortable" data-sort="sender">
+                                From
+                                <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col" class="sortable" data-sort="subject">
+                                Subject
+                                <span class="sort-indicator" aria-hidden="true"></span>
+                            </th>
+                            <th scope="col">Labels</th>
+                            <th scope="col" aria-label="Has attachments">
+                                <span aria-hidden="true">📎</span>
+                            </th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emailTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- No Results State -->
+            <div id="noResults" class="empty-state" style="display: none;">
+                <div class="empty-state-icon" aria-hidden="true">🔍</div>
+                <h3>No emails found</h3>
+                <p>Try adjusting your search or filters to find what you're looking for.</p>
+                <button id="clearAllFilters" class="btn btn-primary">Clear All Filters</button>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="pagination" role="navigation" aria-label="Email pagination">
+                <button id="firstPage" class="btn btn-outline" aria-label="First page">
+                    <span aria-hidden="true">⏮️</span>
+                </button>
+                <button id="prevPage" class="btn btn-outline" aria-label="Previous page">
+                    <span aria-hidden="true">←</span> Previous
+                </button>
+                <span class="page-info" aria-live="polite" aria-atomic="true">
+                    Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+                </span>
+                <button id="nextPage" class="btn btn-outline" aria-label="Next page">
+                    Next <span aria-hidden="true">→</span>
+                </button>
+                <button id="lastPage" class="btn btn-outline" aria-label="Last page">
+                    <span aria-hidden="true">⏭️</span>
+                </button>
+            </nav>
+        </section>
+    </main>
+
+    <!-- Email Viewer Modal -->
+    <div id="emailModal" class="modal" role="dialog" aria-labelledby="emailModalTitle" aria-modal="true" style="display: none;">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <button id="backToList" class="btn btn-ghost" aria-label="Back to email list">
+                    <span aria-hidden="true">←</span> Back to List
+                </button>
+                <button id="closeModal" class="btn btn-ghost" aria-label="Close email viewer">
+                    <span aria-hidden="true">×</span> Close <kbd>ESC</kbd>
+                </button>
+            </div>
+
+            <div class="modal-body" id="emailViewerContent">
+                <!-- Email content populated by JavaScript -->
+            </div>
+
+            <div class="modal-footer">
+                <button id="prevEmail" class="btn btn-outline" aria-label="Previous email">
+                    <span aria-hidden="true">←</span> Previous
+                </button>
+                <button id="nextEmail" class="btn btn-outline" aria-label="Next email">
+                    Next <span aria-hidden="true">→</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Panel -->
+    <aside id="helpPanel" class="help-panel" role="complementary" aria-label="Help and support" style="display: none;">
+        <div class="help-header">
+            <h2>Help & Support</h2>
+            <button id="closeHelp" class="btn btn-ghost" aria-label="Close help panel">
+                <span aria-hidden="true">×</span>
+            </button>
+        </div>
+        <div class="help-content">
+            <div class="help-section">
+                <h3>Keyboard Shortcuts</h3>
+                <dl class="shortcut-list">
+                    <dt><kbd>/</kbd></dt>
+                    <dd>Focus search</dd>
+                    <dt><kbd>ESC</kbd></dt>
+                    <dd>Close modal/panel</dd>
+                    <dt><kbd>←</kbd> <kbd>→</kbd></dt>
+                    <dd>Navigate emails</dd>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show help</dd>
+                </dl>
+            </div>
+            <div class="help-section">
+                <h3>Search Tips</h3>
+                <ul>
+                    <li>Search by sender: Type their name or email</li>
+                    <li>Search by subject: Just type what you remember</li>
+                    <li>Use filters for precise results</li>
+                    <li>Combine search with filters for best results</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>Common Questions</h3>
+                <details>
+                    <summary>How do I find emails from a specific person?</summary>
+                    <p>Use the "From (Sender)" filter in Advanced Search, or type their name in the main search box.</p>
+                </details>
+                <details>
+                    <summary>What are the different views?</summary>
+                    <p><strong>By Date:</strong> Shows emails in chronological order.<br>
+                       <strong>By Sender:</strong> Groups emails by who sent them.<br>
+                       <strong>By Thread:</strong> Groups related emails together.</p>
+                </details>
+                <details>
+                    <summary>How do I filter by date?</summary>
+                    <p>Click "Advanced Search" and select a date range. You can use quick presets like "This Week" or choose custom dates.</p>
+                </details>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true">
+        <!-- Toasts populated by JavaScript -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/email-viewer.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

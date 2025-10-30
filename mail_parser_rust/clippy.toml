@@ -1,0 +1,45 @@
+# Clippy configuration for mail_parser_rust
+# Enforces strict code quality standards
+
+# Complexity thresholds
+cognitive-complexity-threshold = 15
+type-complexity-threshold = 250
+
+# Documentation
+missing-docs-in-crate-items = true
+
+# Performance
+vec-box-size-threshold = 4096
+trivial-copy-size-limit = 128
+
+# Style preferences
+single-char-binding-names-threshold = 4
+too-many-arguments-threshold = 7
+too-large-for-stack = 200
+
+# Allowed by default (override project defaults)
+# These are allowed because they conflict with PyO3 patterns
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+allow-unwrap-in-tests = true
+
+# Disallowed lints (catch common mistakes)
+disallowed-macros = []
+disallowed-methods = [
+    # Prefer ? operator over unwrap in library code
+    { path = "std::result::Result::unwrap", reason = "Use ? operator or proper error handling" },
+    { path = "std::option::Option::unwrap", reason = "Use ? operator or proper error handling" },
+]
+disallowed-types = [
+    # Encourage more specific error types
+    { path = "std::error::Error", reason = "Use anyhow::Error or custom error types" },
+]
+
+# Enforce MSRV (minimum supported Rust version)
+msrv = "1.70"
+
+# Avoid too many imports in use statements
+max-suggested-slice-pattern-length = 3
+
+# Enforce alphabetical ordering
+enforce-iter-loop-reborrow = true

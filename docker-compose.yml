@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Mail Parser - Web Service
+  mail-parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mailparser/app:latest
+    container_name: mail-parser
+    restart: unless-stopped
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+    # Environment variables
+    environment:
+      - OUTPUT_DIR=/output
+      - WORKERS=8
+      - PYTHONUNBUFFERED=1
+
+    # Volumes
+    volumes:
+      # Mount local directories
+      - ./mail_data:/data:ro          # Read-only mbox files
+      - ./output:/output              # Writable output directory
+      - ./config:/app/config:ro       # Optional config files
+      - ./credentials:/app/credentials:ro  # Optional Gmail API credentials
+
+    # Ports (for web dashboard if served via HTTP)
+    ports:
+      - "8080:8080"
+
+    # Network
+    networks:
+      - mail-parser-net
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import mail_parser; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Command (override to run specific tasks)
+    # Default: Shows help
+    # Override with: docker-compose run mail-parser python -m mail_parser.cli parse --mbox /data/file.mbox --output /output
+    command: ["python", "-m", "mail_parser.cli", "--help"]
+
+  # Optional: Nginx for serving static dashboard
+  nginx:
+    image: nginx:alpine
+    container_name: mail-parser-nginx
+    restart: unless-stopped
+    profiles:
+      - web
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./output:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+    networks:
+      - mail-parser-net
+
+    depends_on:
+      - mail-parser
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  mail-parser-net:
+    driver: bridge
+
+# Named volumes (optional, for persistent data)
+volumes:
+  mail_data:
+    driver: local
+  output:
+    driver: local

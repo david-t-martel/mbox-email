@@ -1,0 +1,80 @@
+# Cargo configuration for mail_parser_rust
+# Optimized for cross-platform PyO3 extension builds
+
+# Build configuration
+[build]
+# Parallel compilation uses all available CPU cores by default
+# Uncomment to limit: jobs = 4
+
+# Target-specific configuration
+[target.x86_64-unknown-linux-gnu]
+# Use mold linker for faster linking on Linux (if available, fallback to lld)
+linker = "clang"
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",
+    "-C", "target-cpu=native",  # Optimize for local CPU (use generic for distribution)
+]
+
+[target.x86_64-apple-darwin]
+# macOS-specific optimizations
+rustflags = [
+    "-C", "target-cpu=native",
+]
+
+[target.aarch64-apple-darwin]
+# Apple Silicon optimizations
+rustflags = [
+    "-C", "target-cpu=native",
+]
+
+[target.x86_64-pc-windows-gnu]
+# Windows (WSL) cross-compilation
+linker = "x86_64-w64-mingw32-gcc"
+
+[target.x86_64-pc-windows-msvc]
+# Windows MSVC target
+rustflags = [
+    "-C", "target-cpu=native",
+]
+
+# Alias for common commands
+[alias]
+# Fast build with basic optimizations
+build-fast = "build --release --config profile.release.opt-level=2 --config profile.release.lto='thin'"
+
+# Maximum optimization build
+build-opt = "build --release"
+
+# Build and install to Python environment
+install-dev = "run --bin maturin -- develop --release"
+
+# Run all tests with output
+test-all = "test --all-features -- --nocapture --test-threads=1"
+
+# Run benchmarks
+bench-all = "bench --all-features"
+
+# Clippy with auto-fix
+fix = "clippy --fix --allow-dirty --allow-staged"
+
+# Format and clippy check
+check-all = "hack check --each-feature --no-dev-deps"
+
+# Profile configuration for different build types
+[profile.release-with-debug]
+inherits = "release"
+debug = true  # Keep debug symbols for profiling
+
+# Additional environment variables
+[env]
+# Ensure Python is found correctly
+PYTHON_SYS_EXECUTABLE = { value = "", relative = true }
+
+# Net configuration (for faster crate downloads)
+[net]
+git-fetch-with-cli = true
+
+# Cargo features
+[term]
+verbose = false
+color = "auto"
