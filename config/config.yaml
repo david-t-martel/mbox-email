@@ -1,0 +1,53 @@
+# Mail Parser Configuration
+
+# Input/Output
+input:
+  mbox_path: "/mnt/c/codedev/auricleinc/mail_analysis/mail/david-martel.mbox"
+
+output:
+  base_dir: "./output"
+  organize_by:
+    - date
+    - sender
+    - thread
+  html_format: "full"  # full, simple, or minimal
+
+# Performance
+performance:
+  workers: 8
+  chunk_size: 1000
+  max_memory_mb: 2048
+  enable_caching: true
+
+# Gmail API
+gmail_api:
+  enabled: true
+  credentials_path: "./credentials/credentials.json"
+  token_path: "./credentials/token.json"
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+  rate_limit_qps: 10  # Queries per second
+
+# Analysis
+analysis:
+  enable_statistics: true
+  enable_duplicate_detection: true
+  enable_sentiment_analysis: true
+  enable_attachment_analysis: true
+
+# Search & Indexing
+indexing:
+  enable_full_text_search: true
+  database_path: "./output/email_index.db"
+  index_fields:
+    - sender
+    - recipient
+    - subject
+    - body
+    - labels
+    - date
+
+# Logging
+logging:
+  level: "INFO"
+  file: "./mail_parser.log"

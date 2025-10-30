@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ metadata.subject }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .email-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+
+        .email-subject {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            word-wrap: break-word;
+        }
+
+        .email-meta {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        .email-meta-row {
+            margin: 8px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        .meta-value {
+            flex: 1;
+            word-wrap: break-word;
+        }
+
+        .email-address {
+            display: inline-block;
+        }
+
+        .labels-container {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .label {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .email-body {
+            padding: 30px;
+        }
+
+        .email-body img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .text-body {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .attachments-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .attachments-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .attachment-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .attachment-icon {
+            font-size: 24px;
+        }
+
+        .attachment-info {
+            flex: 1;
+        }
+
+        .attachment-name {
+            font-weight: 500;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .attachment-size {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .email-header,
+            .email-body,
+            .attachments-section,
+            .footer {
+                padding: 20px;
+            }
+
+            .email-subject {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <div class="email-subject">{{ metadata.subject or '(No Subject)' }}</div>
+
+            <div class="email-meta">
+                <div class="email-meta-row">
+                    <span class="meta-label">From:</span>
+                    <span class="meta-value">
+                        {% if metadata.from.name %}
+                            {{ metadata.from.name }} &lt;{{ metadata.from.email }}&gt;
+                        {% else %}
+                            {{ metadata.from.email }}
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if metadata.to %}
+                <div class="email-meta-row">
+                    <span class="meta-label">To:</span>
+                    <span class="meta-value">
+                        {% for addr in metadata.to %}
+                            <span class="email-address">
+                                {% if addr.name %}
+                                    {{ addr.name }} &lt;{{ addr.email }}&gt;
+                                {% else %}
+                                    {{ addr.email }}
+                                {% endif %}
+                            </span>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if metadata.cc %}
+                <div class="email-meta-row">
+                    <span class="meta-label">Cc:</span>
+                    <span class="meta-value">
+                        {% for addr in metadata.cc %}
+                            <span class="email-address">
+                                {% if addr.name %}
+                                    {{ addr.name }} &lt;{{ addr.email }}&gt;
+                                {% else %}
+                                    {{ addr.email }}
+                                {% endif %}
+                            </span>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                {% endif %}
+
+                <div class="email-meta-row">
+                    <span class="meta-label">Date:</span>
+                    <span class="meta-value">
+                        {% if metadata.date %}
+                            {{ metadata.date.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            Unknown
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if metadata.gmail_labels %}
+                <div class="labels-container">
+                    {% for label in metadata.gmail_labels %}
+                        <span class="label">{{ label }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="email-body">
+            {{ body_html|safe }}
+        </div>
+
+        <!-- Attachments -->
+        {% if attachments %}
+        <div class="attachments-section">
+            <div class="attachments-title">
+                📎 Attachments ({{ attachments|length }})
+            </div>
+            <div class="attachment-list">
+                {% for attachment in attachments %}
+                <div class="attachment-item">
+                    <div class="attachment-icon">
+                        {{ attachment.content_type|mime_icon }}
+                    </div>
+                    <div class="attachment-info">
+                        <div class="attachment-name">{{ attachment.filename }}</div>
+                        <div class="attachment-size">
+                            {{ attachment.size|format_size }} - {{ attachment.content_type }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            Message ID: {{ metadata.message_id or 'Unknown' }}
+            {% if metadata.gmail_thread_id %}
+            | Thread ID: {{ metadata.gmail_thread_id }}
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
