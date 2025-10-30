@@ -67,11 +67,11 @@ class EmailProcessor:
             name, email = email_utils.parseaddr(address)
             return {
                 'name': EmailProcessor.decode_header(name),
-                'email': email.lower().strip()
+                'email': str(email).lower().strip() if email else ''
             }
         except Exception as e:
             logger.warning(f"Failed to parse address '{address}': {e}")
-            return {'name': '', 'email': address}
+            return {'name': '', 'email': str(address) if address else ''}
 
     @staticmethod
     def parse_addresses(addresses: str) -> list[dict[str, str]]:
