@@ -1,6 +1,12 @@
 # Mail Parser - High-Performance Gmail mbox Parser & Analyzer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub](https://img.shields.io/badge/GitHub-mbox--email-181717?logo=github)](https://github.com/david-t-martel/mbox-email)
+
 A feature-rich, high-performance email analysis system that parses Gmail mbox files (like Google Takeout exports) with multi-dimensional organization, interactive web dashboard, and comprehensive analytics.
+
+**Repository**: [https://github.com/david-t-martel/mbox-email](https://github.com/david-t-martel/mbox-email)
 
 ## 🎯 Key Features
 
